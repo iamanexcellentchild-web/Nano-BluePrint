@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api } from '../api';
 import { useStore } from '../store';
+import { diffDiagrams } from '../diff';
 import type { AiResult } from '../types';
 
 export function AiPanel() {
@@ -16,6 +17,10 @@ export function AiPanel() {
     finally { setBusy(false); }
   };
 
+  const diff = result?.mode === 'suggest' && result?.proposed_diagram
+    ? diffDiagrams(toDiagram(), result.proposed_diagram)
+    : [];
+
   return (
     <div className="ai">
       <p className="hint">The assistant edits the diagram, never the code. You approve every change.</p>
@@ -30,6 +35,14 @@ export function AiPanel() {
       {result?.mode === 'suggest' && (
         <div className="ai__text">
           <p>{result.summary || 'No changes suggested.'}</p>
+          {diff.length > 0 && (
+            <div className="ai__diff">
+              <p className="ai__diff-title">Changes to apply:</p>
+              <ul>
+                {diff.map((change, i) => <li key={i}>{change}</li>)}
+              </ul>
+            </div>
+          )}
           {result.proposed_diagram && (
             <div className="row">
               <button className="primary" onClick={() => { applyProposal(result.proposed_diagram!); setResult(null); }}>Apply to canvas</button>
