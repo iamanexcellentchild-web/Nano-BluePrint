@@ -105,7 +105,13 @@ class ApiTests(TestCase):
         allowed = self.c.patch(f"/api/schemas/{created.json()['slug']}/", {"title": "Updated schema"}, format="json")
         self.assertEqual(allowed.status_code, 200, allowed.content)
 
+    @override_settings(DEBUG=False)
     def test_account_registration_and_token_login(self):
+        self.assertEqual(self.c.get("/api/blocks/").status_code, 200)
+        self.assertEqual(self.c.get("/api/templates/").status_code, 200)
+        self.assertEqual(self.c.get("/api/templates/ecommerce/").status_code, 200)
+        self.assertIn(self.c.get("/api/projects/").status_code, (401, 403))
+
         registration = self.c.post("/api/auth/register/", {
             "username": "schema-publisher",
             "password": "distinct-strong-password-123",
@@ -118,6 +124,8 @@ class ApiTests(TestCase):
         self.assertEqual(login.status_code, 200, login.content)
         self.c.credentials(HTTP_AUTHORIZATION=f"Token {login.json()['token']}")
         self.assertEqual(self.c.get("/api/projects/").status_code, 200)
+        created_project = self.c.post("/api/projects/", {"name": "Authenticated project"}, format="json")
+        self.assertEqual(created_project.status_code, 201, created_project.content)
 
     def test_publishing_rejects_diagrams_with_errors(self):
         diagram = self.c.get("/api/templates/ecommerce/").json()

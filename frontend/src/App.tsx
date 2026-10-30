@@ -132,6 +132,20 @@ export function App() {
     setLauncher(true);
   };
 
+  const handleAuthenticated = async (token: string) => {
+    localStorage.setItem('blueprint_token', token);
+    setAuthenticated(true);
+    try {
+      store.setLibrary(await api.library());
+      const currentProjectId = useStore.getState().projectId;
+      const savedProjectId = Number(localStorage.getItem(PROJECT_KEY));
+      if (!currentProjectId && savedProjectId) await openProject(savedProjectId);
+      store.notify('Signed in');
+    } catch (e) {
+      store.notify(e instanceof Error ? e.message : 'Signed in, but the editor could not reload');
+    }
+  };
+
   const onDrop = (e: DragEvent) => {
     e.preventDefault();
     const type = e.dataTransfer.getData('application/blueprint-block');
@@ -213,7 +227,7 @@ export function App() {
       {launcher && <Launcher onOpen={openProject} onClose={projectId || nodes.length ? () => setLauncher(false) : undefined}
         authenticated={authenticated} onAccount={() => setAccountDialog(true)} />}
       {accountDialog && <AccountDialog authenticated={authenticated} onClose={() => setAccountDialog(false)}
-        onAuthenticated={(token) => { localStorage.setItem('blueprint_token', token); setAuthenticated(true); }}
+        onAuthenticated={(token) => { void handleAuthenticated(token); }}
         onSignOut={signOut} />}
       {schemaDialog && <SchemaLibrary mode={schemaDialog} diagram={schemaDialog === 'publish' ? store.toDiagram() : undefined}
         onClose={() => setSchemaDialog(null)}
