@@ -1,0 +1,387 @@
+{
+ "schema_version": "1",
+ "name": "Online shop",
+ "description": "Customers place orders, pay, and get notified. Delivery fee rule, payment, cancellation and refund path.",
+ "nodes": [
+  {
+   "id": "customer",
+   "type": "actor",
+   "label": "Customer",
+   "config": {
+    "name": "Customer",
+    "permissions": [
+     "place order",
+     "cancel order"
+    ]
+   },
+   "position": {
+    "x": 0,
+    "y": 0
+   }
+  },
+  {
+   "id": "admin",
+   "type": "actor",
+   "label": "Admin",
+   "config": {
+    "name": "Admin",
+    "permissions": [
+     "cancel order",
+     "refund"
+    ]
+   },
+   "position": {
+    "x": 0,
+    "y": 160
+   }
+  },
+  {
+   "id": "order",
+   "type": "entity",
+   "label": "Order",
+   "config": {
+    "name": "Order",
+    "fields": [
+     {
+      "name": "customer_name",
+      "type": "string",
+      "required": true
+     },
+     {
+      "name": "phone",
+      "type": "string",
+      "required": true
+     },
+     {
+      "name": "email",
+      "type": "string",
+      "required": false
+     },
+     {
+      "name": "total",
+      "type": "number",
+      "required": true
+     },
+     {
+      "name": "delivery_fee",
+      "type": "number",
+      "required": false
+     },
+     {
+      "name": "delivery_method",
+      "type": "string",
+      "required": false
+     }
+    ]
+   },
+   "position": {
+    "x": 0,
+    "y": 340
+   }
+  },
+  {
+   "id": "ev_placed",
+   "type": "event",
+   "label": "Order placed",
+   "config": {
+    "name": "order_placed",
+    "entity": "Order"
+   },
+   "position": {
+    "x": 300,
+    "y": 0
+   }
+  },
+  {
+   "id": "ev_paid",
+   "type": "event",
+   "label": "Payment received",
+   "config": {
+    "name": "payment_received",
+    "entity": "Order"
+   },
+   "position": {
+    "x": 300,
+    "y": 260
+   }
+  },
+  {
+   "id": "ev_cancel",
+   "type": "event",
+   "label": "Order cancelled",
+   "config": {
+    "name": "order_cancelled",
+    "entity": "Order"
+   },
+   "position": {
+    "x": 300,
+    "y": 520
+   }
+  },
+  {
+   "id": "st_placed",
+   "type": "update_status",
+   "label": "Status: placed",
+   "config": {
+    "status": "placed"
+   },
+   "position": {
+    "x": 600,
+    "y": 0
+   }
+  },
+  {
+   "id": "c_free",
+   "type": "condition",
+   "label": "Total >= 50,000?",
+   "config": {
+    "field": "total",
+    "operator": "gte",
+    "value": "50000"
+   },
+   "position": {
+    "x": 880,
+    "y": 0
+   }
+  },
+  {
+   "id": "fee0",
+   "type": "set_field",
+   "label": "Free delivery",
+   "config": {
+    "field": "delivery_fee",
+    "value": "0"
+   },
+   "position": {
+    "x": 1160,
+    "y": -60
+   }
+  },
+  {
+   "id": "fee1",
+   "type": "set_field",
+   "label": "Delivery fee 1,500",
+   "config": {
+    "field": "delivery_fee",
+    "value": "1500"
+   },
+   "position": {
+    "x": 1160,
+    "y": 80
+   }
+  },
+  {
+   "id": "sms_rec",
+   "type": "send_sms",
+   "label": "SMS: order received",
+   "config": {
+    "to_field": "phone",
+    "message": "Hi {customer_name}, we received your order. Total: {total}."
+   },
+   "position": {
+    "x": 880,
+    "y": 180
+   }
+  },
+  {
+   "id": "st_paid",
+   "type": "update_status",
+   "label": "Status: paid",
+   "config": {
+    "status": "paid"
+   },
+   "position": {
+    "x": 600,
+    "y": 260
+   }
+  },
+  {
+   "id": "sms_paid",
+   "type": "send_sms",
+   "label": "SMS: payment confirmed",
+   "config": {
+    "to_field": "phone",
+    "message": "Payment confirmed, thank you {customer_name}!"
+   },
+   "position": {
+    "x": 880,
+    "y": 260
+   }
+  },
+  {
+   "id": "c_paid",
+   "type": "condition",
+   "label": "Already paid?",
+   "config": {
+    "field": "status",
+    "operator": "eq",
+    "value": "paid"
+   },
+   "position": {
+    "x": 600,
+    "y": 520
+   }
+  },
+  {
+   "id": "st_refund",
+   "type": "update_status",
+   "label": "Status: refund pending",
+   "config": {
+    "status": "refund_pending"
+   },
+   "position": {
+    "x": 880,
+    "y": 480
+   }
+  },
+  {
+   "id": "sms_refund",
+   "type": "send_sms",
+   "label": "SMS: refund started",
+   "config": {
+    "to_field": "phone",
+    "message": "Your order was cancelled. Your refund is on its way."
+   },
+   "position": {
+    "x": 1160,
+    "y": 480
+   }
+  },
+  {
+   "id": "st_cancel",
+   "type": "update_status",
+   "label": "Status: cancelled",
+   "config": {
+    "status": "cancelled"
+   },
+   "position": {
+    "x": 880,
+    "y": 620
+   }
+  },
+  {
+   "id": "pay",
+   "type": "charge_payment",
+   "label": "Charge via Paystack",
+   "config": {
+    "provider": "paystack",
+    "amount_field": "total"
+   },
+   "position": {
+    "x": 600,
+    "y": 380
+   }
+  },
+  {
+   "id": "paystack",
+   "type": "provider",
+   "label": "Paystack",
+   "config": {
+    "provider": "paystack",
+    "note": "Cards and bank transfer for Nigerian merchants."
+   },
+   "position": {
+    "x": 300,
+    "y": 420
+   }
+  }
+ ],
+ "edges": [
+  {
+   "id": "e_customer_ev_placed",
+   "source": "customer",
+   "target": "ev_placed",
+   "source_handle": null
+  },
+  {
+   "id": "e_admin_ev_cancel",
+   "source": "admin",
+   "target": "ev_cancel",
+   "source_handle": null
+  },
+  {
+   "id": "e_order_ev_placed",
+   "source": "order",
+   "target": "ev_placed",
+   "source_handle": null
+  },
+  {
+   "id": "e_ev_placed_st_placed",
+   "source": "ev_placed",
+   "target": "st_placed",
+   "source_handle": null
+  },
+  {
+   "id": "e_st_placed_c_free",
+   "source": "st_placed",
+   "target": "c_free",
+   "source_handle": null
+  },
+  {
+   "id": "e_c_free_fee0_true",
+   "source": "c_free",
+   "target": "fee0",
+   "source_handle": "true"
+  },
+  {
+   "id": "e_c_free_fee1_false",
+   "source": "c_free",
+   "target": "fee1",
+   "source_handle": "false"
+  },
+  {
+   "id": "e_st_placed_sms_rec",
+   "source": "st_placed",
+   "target": "sms_rec",
+   "source_handle": null
+  },
+  {
+   "id": "e_ev_paid_st_paid",
+   "source": "ev_paid",
+   "target": "st_paid",
+   "source_handle": null
+  },
+  {
+   "id": "e_st_paid_sms_paid",
+   "source": "st_paid",
+   "target": "sms_paid",
+   "source_handle": null
+  },
+  {
+   "id": "e_ev_cancel_c_paid",
+   "source": "ev_cancel",
+   "target": "c_paid",
+   "source_handle": null
+  },
+  {
+   "id": "e_c_paid_st_refund_true",
+   "source": "c_paid",
+   "target": "st_refund",
+   "source_handle": "true"
+  },
+  {
+   "id": "e_st_refund_sms_refund",
+   "source": "st_refund",
+   "target": "sms_refund",
+   "source_handle": null
+  },
+  {
+   "id": "e_c_paid_st_cancel_false",
+   "source": "c_paid",
+   "target": "st_cancel",
+   "source_handle": "false"
+  },
+  {
+   "id": "e_ev_placed_pay",
+   "source": "ev_placed",
+   "target": "pay",
+   "source_handle": null
+  },
+  {
+   "id": "e_paystack_pay",
+   "source": "paystack",
+   "target": "pay",
+   "source_handle": null
+  }
+ ]
+}

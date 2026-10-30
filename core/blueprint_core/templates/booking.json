@@ -1,0 +1,304 @@
+{
+ "schema_version": "1",
+ "name": "Appointment booking",
+ "description": "Customers request a slot; staff confirm; reminders and cancellation fee rule.",
+ "nodes": [
+  {
+   "id": "client",
+   "type": "actor",
+   "label": "Client",
+   "config": {
+    "name": "Client",
+    "permissions": [
+     "request booking",
+     "cancel booking"
+    ]
+   },
+   "position": {
+    "x": 0,
+    "y": 0
+   }
+  },
+  {
+   "id": "staff",
+   "type": "actor",
+   "label": "Staff",
+   "config": {
+    "name": "Staff",
+    "permissions": [
+     "confirm booking"
+    ]
+   },
+   "position": {
+    "x": 0,
+    "y": 160
+   }
+  },
+  {
+   "id": "booking",
+   "type": "entity",
+   "label": "Booking",
+   "config": {
+    "name": "Booking",
+    "fields": [
+     {
+      "name": "client_name",
+      "type": "string",
+      "required": true
+     },
+     {
+      "name": "phone",
+      "type": "string",
+      "required": true
+     },
+     {
+      "name": "service",
+      "type": "string",
+      "required": true
+     },
+     {
+      "name": "starts_at",
+      "type": "datetime",
+      "required": true
+     },
+     {
+      "name": "deposit",
+      "type": "number",
+      "required": false
+     }
+    ]
+   },
+   "position": {
+    "x": 0,
+    "y": 340
+   }
+  },
+  {
+   "id": "ev_req",
+   "type": "event",
+   "label": "Booking requested",
+   "config": {
+    "name": "booking_requested",
+    "entity": "Booking"
+   },
+   "position": {
+    "x": 300,
+    "y": 0
+   }
+  },
+  {
+   "id": "ev_conf",
+   "type": "event",
+   "label": "Booking confirmed",
+   "config": {
+    "name": "booking_confirmed",
+    "entity": "Booking"
+   },
+   "position": {
+    "x": 300,
+    "y": 240
+   }
+  },
+  {
+   "id": "ev_cancel",
+   "type": "event",
+   "label": "Booking cancelled",
+   "config": {
+    "name": "booking_cancelled",
+    "entity": "Booking"
+   },
+   "position": {
+    "x": 300,
+    "y": 460
+   }
+  },
+  {
+   "id": "st_pending",
+   "type": "update_status",
+   "label": "Status: pending",
+   "config": {
+    "status": "pending"
+   },
+   "position": {
+    "x": 600,
+    "y": 0
+   }
+  },
+  {
+   "id": "dep",
+   "type": "set_field",
+   "label": "Deposit 2,000",
+   "config": {
+    "field": "deposit",
+    "value": "2000"
+   },
+   "position": {
+    "x": 880,
+    "y": 0
+   }
+  },
+  {
+   "id": "pay",
+   "type": "charge_payment",
+   "label": "Charge deposit",
+   "config": {
+    "provider": "paystack",
+    "amount_field": "deposit"
+   },
+   "position": {
+    "x": 1160,
+    "y": 0
+   }
+  },
+  {
+   "id": "sms_req",
+   "type": "send_sms",
+   "label": "SMS: request received",
+   "config": {
+    "to_field": "phone",
+    "message": "Hi {client_name}, we got your request for {service}."
+   },
+   "position": {
+    "x": 880,
+    "y": 120
+   }
+  },
+  {
+   "id": "st_conf",
+   "type": "update_status",
+   "label": "Status: confirmed",
+   "config": {
+    "status": "confirmed"
+   },
+   "position": {
+    "x": 600,
+    "y": 240
+   }
+  },
+  {
+   "id": "sms_conf",
+   "type": "send_sms",
+   "label": "SMS: confirmed",
+   "config": {
+    "to_field": "phone",
+    "message": "Confirmed! See you at {starts_at}."
+   },
+   "position": {
+    "x": 880,
+    "y": 240
+   }
+  },
+  {
+   "id": "st_cancel",
+   "type": "update_status",
+   "label": "Status: cancelled",
+   "config": {
+    "status": "cancelled"
+   },
+   "position": {
+    "x": 600,
+    "y": 460
+   }
+  },
+  {
+   "id": "c_dep",
+   "type": "condition",
+   "label": "Deposit paid?",
+   "config": {
+    "field": "deposit",
+    "operator": "gt",
+    "value": "0"
+   },
+   "position": {
+    "x": 880,
+    "y": 460
+   }
+  },
+  {
+   "id": "custom_fee",
+   "type": "custom_code",
+   "label": "Apply late-cancel rule",
+   "config": {
+    "description": "If the booking starts in under 24 hours, keep the deposit; otherwise refund it."
+   },
+   "position": {
+    "x": 1160,
+    "y": 420
+   }
+  }
+ ],
+ "edges": [
+  {
+   "id": "e_client_ev_req",
+   "source": "client",
+   "target": "ev_req",
+   "source_handle": null
+  },
+  {
+   "id": "e_staff_ev_conf",
+   "source": "staff",
+   "target": "ev_conf",
+   "source_handle": null
+  },
+  {
+   "id": "e_booking_ev_req",
+   "source": "booking",
+   "target": "ev_req",
+   "source_handle": null
+  },
+  {
+   "id": "e_ev_req_st_pending",
+   "source": "ev_req",
+   "target": "st_pending",
+   "source_handle": null
+  },
+  {
+   "id": "e_st_pending_dep",
+   "source": "st_pending",
+   "target": "dep",
+   "source_handle": null
+  },
+  {
+   "id": "e_dep_pay",
+   "source": "dep",
+   "target": "pay",
+   "source_handle": null
+  },
+  {
+   "id": "e_st_pending_sms_req",
+   "source": "st_pending",
+   "target": "sms_req",
+   "source_handle": null
+  },
+  {
+   "id": "e_ev_conf_st_conf",
+   "source": "ev_conf",
+   "target": "st_conf",
+   "source_handle": null
+  },
+  {
+   "id": "e_st_conf_sms_conf",
+   "source": "st_conf",
+   "target": "sms_conf",
+   "source_handle": null
+  },
+  {
+   "id": "e_ev_cancel_st_cancel",
+   "source": "ev_cancel",
+   "target": "st_cancel",
+   "source_handle": null
+  },
+  {
+   "id": "e_st_cancel_c_dep",
+   "source": "st_cancel",
+   "target": "c_dep",
+   "source_handle": null
+  },
+  {
+   "id": "e_c_dep_custom_fee_true",
+   "source": "c_dep",
+   "target": "custom_fee",
+   "source_handle": "true"
+  }
+ ]
+}

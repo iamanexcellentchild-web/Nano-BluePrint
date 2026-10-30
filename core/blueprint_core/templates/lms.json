@@ -1,0 +1,310 @@
+{
+ "schema_version": "1",
+ "name": "Course platform (LMS)",
+ "description": "Students enrol in courses, pay, get access, and complete lessons.",
+ "nodes": [
+  {
+   "id": "student",
+   "type": "actor",
+   "label": "Student",
+   "config": {
+    "name": "Student",
+    "permissions": [
+     "enrol",
+     "view lessons"
+    ]
+   },
+   "position": {
+    "x": 0,
+    "y": 0
+   }
+  },
+  {
+   "id": "instructor",
+   "type": "actor",
+   "label": "Instructor",
+   "config": {
+    "name": "Instructor",
+    "permissions": [
+     "create course",
+     "grade"
+    ]
+   },
+   "position": {
+    "x": 0,
+    "y": 160
+   }
+  },
+  {
+   "id": "enrol",
+   "type": "entity",
+   "label": "Enrolment",
+   "config": {
+    "name": "Enrolment",
+    "fields": [
+     {
+      "name": "student_name",
+      "type": "string",
+      "required": true
+     },
+     {
+      "name": "email",
+      "type": "string",
+      "required": true
+     },
+     {
+      "name": "phone",
+      "type": "string",
+      "required": false
+     },
+     {
+      "name": "course",
+      "type": "string",
+      "required": true
+     },
+     {
+      "name": "price",
+      "type": "number",
+      "required": true
+     },
+     {
+      "name": "progress",
+      "type": "integer",
+      "required": false
+     }
+    ]
+   },
+   "position": {
+    "x": 0,
+    "y": 340
+   }
+  },
+  {
+   "id": "ev_enrol",
+   "type": "event",
+   "label": "Student enrols",
+   "config": {
+    "name": "student_enrolled",
+    "entity": "Enrolment"
+   },
+   "position": {
+    "x": 300,
+    "y": 0
+   }
+  },
+  {
+   "id": "ev_paid",
+   "type": "event",
+   "label": "Payment received",
+   "config": {
+    "name": "payment_received",
+    "entity": "Enrolment"
+   },
+   "position": {
+    "x": 300,
+    "y": 240
+   }
+  },
+  {
+   "id": "ev_done",
+   "type": "event",
+   "label": "Course completed",
+   "config": {
+    "name": "course_completed",
+    "entity": "Enrolment"
+   },
+   "position": {
+    "x": 300,
+    "y": 460
+   }
+  },
+  {
+   "id": "st_pending",
+   "type": "update_status",
+   "label": "Status: awaiting payment",
+   "config": {
+    "status": "awaiting_payment"
+   },
+   "position": {
+    "x": 600,
+    "y": 0
+   }
+  },
+  {
+   "id": "c_free",
+   "type": "condition",
+   "label": "Free course?",
+   "config": {
+    "field": "price",
+    "operator": "eq",
+    "value": "0"
+   },
+   "position": {
+    "x": 880,
+    "y": 0
+   }
+  },
+  {
+   "id": "st_active0",
+   "type": "update_status",
+   "label": "Status: active",
+   "config": {
+    "status": "active"
+   },
+   "position": {
+    "x": 1160,
+    "y": -60
+   }
+  },
+  {
+   "id": "pay",
+   "type": "charge_payment",
+   "label": "Charge via Flutterwave",
+   "config": {
+    "provider": "flutterwave",
+    "amount_field": "price"
+   },
+   "position": {
+    "x": 1160,
+    "y": 80
+   }
+  },
+  {
+   "id": "st_active",
+   "type": "update_status",
+   "label": "Status: active",
+   "config": {
+    "status": "active"
+   },
+   "position": {
+    "x": 600,
+    "y": 240
+   }
+  },
+  {
+   "id": "mail_welcome",
+   "type": "send_email",
+   "label": "Email: welcome",
+   "config": {
+    "to_field": "email",
+    "subject": "Welcome to {course}",
+    "message": "Hi {student_name}, you now have access to {course}."
+   },
+   "position": {
+    "x": 880,
+    "y": 240
+   }
+  },
+  {
+   "id": "st_done",
+   "type": "update_status",
+   "label": "Status: completed",
+   "config": {
+    "status": "completed"
+   },
+   "position": {
+    "x": 600,
+    "y": 460
+   }
+  },
+  {
+   "id": "prog",
+   "type": "set_field",
+   "label": "Progress = 100",
+   "config": {
+    "field": "progress",
+    "value": "100"
+   },
+   "position": {
+    "x": 880,
+    "y": 460
+   }
+  },
+  {
+   "id": "cert",
+   "type": "custom_code",
+   "label": "Issue certificate",
+   "config": {
+    "description": "Generate a PDF certificate and email it to the student."
+   },
+   "position": {
+    "x": 1160,
+    "y": 460
+   }
+  }
+ ],
+ "edges": [
+  {
+   "id": "e_student_ev_enrol",
+   "source": "student",
+   "target": "ev_enrol",
+   "source_handle": null
+  },
+  {
+   "id": "e_instructor_ev_done",
+   "source": "instructor",
+   "target": "ev_done",
+   "source_handle": null
+  },
+  {
+   "id": "e_enrol_ev_enrol",
+   "source": "enrol",
+   "target": "ev_enrol",
+   "source_handle": null
+  },
+  {
+   "id": "e_ev_enrol_st_pending",
+   "source": "ev_enrol",
+   "target": "st_pending",
+   "source_handle": null
+  },
+  {
+   "id": "e_st_pending_c_free",
+   "source": "st_pending",
+   "target": "c_free",
+   "source_handle": null
+  },
+  {
+   "id": "e_c_free_st_active0_true",
+   "source": "c_free",
+   "target": "st_active0",
+   "source_handle": "true"
+  },
+  {
+   "id": "e_c_free_pay_false",
+   "source": "c_free",
+   "target": "pay",
+   "source_handle": "false"
+  },
+  {
+   "id": "e_ev_paid_st_active",
+   "source": "ev_paid",
+   "target": "st_active",
+   "source_handle": null
+  },
+  {
+   "id": "e_st_active_mail_welcome",
+   "source": "st_active",
+   "target": "mail_welcome",
+   "source_handle": null
+  },
+  {
+   "id": "e_ev_done_st_done",
+   "source": "ev_done",
+   "target": "st_done",
+   "source_handle": null
+  },
+  {
+   "id": "e_st_done_prog",
+   "source": "st_done",
+   "target": "prog",
+   "source_handle": null
+  },
+  {
+   "id": "e_prog_cert",
+   "source": "prog",
+   "target": "cert",
+   "source_handle": null
+  }
+ ]
+}

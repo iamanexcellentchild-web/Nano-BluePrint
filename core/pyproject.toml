@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "blueprint-core"
+version = "0.1.0"
+description = "Diagram -> IR -> code. Framework-free core of Blueprint."
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.setuptools.packages.find]
+include = ["blueprint_core*"]
+
+[tool.setuptools.package-data]
+blueprint_core = ["templates/*.json", "runtime_support.py"]
