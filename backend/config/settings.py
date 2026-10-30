@@ -51,15 +51,25 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.TokenAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
-    # In DEBUG anonymous use is allowed so you can try the canvas without logging in.
-    # In production every endpoint requires authentication. See projects/permissions.py.
-    "DEFAULT_PERMISSION_CLASSES": ["projects.permissions.DevOrAuthenticated"],
+    # Every endpoint requires authentication unless it explicitly opts out (registration/token).
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
     "DEFAULT_THROTTLE_RATES": {"ai": "20/min", "generate": "30/min"},
 }
-SPECTACULAR_SETTINGS = {"TITLE": "Blueprint API", "VERSION": "0.1.0",
-                        "DESCRIPTION": "Visual business-logic designer with validation, simulation, code generation, and a public library of documented, reusable schemas."}
+SPECTACULAR_SETTINGS = {"TITLE": "Nano-BluePrint API", "VERSION": "0.1.0",
+                        "DESCRIPTION": "Authenticated visual business-logic designer with validation, simulation, code generation, and reusable schemas.",
+                        "SWAGGER_UI_SETTINGS": """{
+                            deepLinking: true,
+                            requestInterceptor: (request) => {
+                                const token = window.localStorage.getItem('blueprint_token');
+                                if (token) {
+                                    request.headers = request.headers || {};
+                                    request.headers.Authorization = `Token ${token}`;
+                                }
+                                return request;
+                            }
+                        }"""}
 
 # Hard limits so a diagram payload cannot exhaust memory.
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024

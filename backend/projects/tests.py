@@ -13,6 +13,8 @@ from . import ai
 class ApiTests(TestCase):
     def setUp(self):
         self.c = APIClient()
+        self.user = get_user_model().objects.create_user(username="api-test-user", password="safe-test-password-123")
+        self.c.force_authenticate(user=self.user)
 
     def test_block_library_and_templates(self):
         self.assertTrue(self.c.get("/api/blocks/").json()["blocks"])
@@ -107,24 +109,42 @@ class ApiTests(TestCase):
 
     @override_settings(DEBUG=False)
     def test_account_registration_and_token_login(self):
-        self.assertEqual(self.c.get("/api/blocks/").status_code, 200)
-        self.assertEqual(self.c.get("/api/templates/").status_code, 200)
-        self.assertEqual(self.c.get("/api/templates/ecommerce/").status_code, 200)
-        self.assertIn(self.c.get("/api/projects/").status_code, (401, 403))
+        anonymous = APIClient()
+        protected_requests = [
+            anonymous.get("/api/blocks/"),
+            anonymous.get("/api/templates/"),
+            anonymous.get("/api/templates/ecommerce/"),
+            anonymous.get("/api/schemas/"),
+            anonymous.get("/api/projects/"),
+            anonymous.post("/api/validate/", {}, format="json"),
+            anonymous.post("/api/simulate/", {}, format="json"),
+            anonymous.post("/api/generate/", {}, format="json"),
+            anonymous.post("/api/generate/ai/", {}, format="json"),
+            anonymous.post("/api/ai/", {}, format="json"),
+        ]
+        self.assertTrue(all(response.status_code in (401, 403) for response in protected_requests))
+        self.assertIn(anonymous.get("/api/docs/").status_code, (401, 403))
+        self.assertIn(anonymous.get("/api/schema/").status_code, (401, 403))
 
-        registration = self.c.post("/api/auth/register/", {
+        registration = anonymous.post("/api/auth/register/", {
             "username": "schema-publisher",
             "password": "distinct-strong-password-123",
         }, format="json")
         self.assertEqual(registration.status_code, 201, registration.content)
-        login = self.c.post("/api/auth/token/", {
+        login = anonymous.post("/api/auth/token/", {
             "username": "schema-publisher",
             "password": "distinct-strong-password-123",
         }, format="json")
         self.assertEqual(login.status_code, 200, login.content)
-        self.c.credentials(HTTP_AUTHORIZATION=f"Token {login.json()['token']}")
-        self.assertEqual(self.c.get("/api/projects/").status_code, 200)
-        created_project = self.c.post("/api/projects/", {"name": "Authenticated project"}, format="json")
+        authenticated = APIClient()
+        authenticated.credentials(HTTP_AUTHORIZATION=f"Token {login.json()['token']}")
+        self.assertEqual(authenticated.get("/api/blocks/").status_code, 200)
+        self.assertEqual(authenticated.get("/api/templates/").status_code, 200)
+        docs = authenticated.get("/api/docs/")
+        self.assertEqual(docs.status_code, 200)
+        self.assertIn(b"requestInterceptor", docs.content)
+        self.assertEqual(authenticated.get("/api/schema/").status_code, 200)
+        created_project = authenticated.post("/api/projects/", {"name": "Authenticated project"}, format="json")
         self.assertEqual(created_project.status_code, 201, created_project.content)
 
     def test_publishing_rejects_diagrams_with_errors(self):
@@ -158,7 +178,13 @@ class ApiTests(TestCase):
 
     @override_settings(DEBUG=False)
     def test_requires_auth_in_production(self):
-        self.assertEqual(self.c.get("/api/blocks/").status_code, 200)
-        self.assertEqual(self.c.get("/api/templates/").status_code, 200)
-        self.assertEqual(self.c.get("/api/schemas/").status_code, 200)
-        self.assertIn(self.c.get("/api/projects/").status_code, (401, 403))
+        anonymous = APIClient()
+        self.assertIn(anonymous.get("/api/projects/").status_code, (401, 403))
+
+    @override_settings(DEBUG=True)
+    def test_debug_mode_still_requires_authentication(self):
+        anonymous = APIClient()
+        self.assertIn(anonymous.get("/api/blocks/").status_code, (401, 403))
+        self.assertIn(anonymous.get("/api/templates/").status_code, (401, 403))
+        self.assertIn(anonymous.get("/api/schemas/").status_code, (401, 403))
+        self.assertIn(anonymous.get("/api/projects/").status_code, (401, 403))

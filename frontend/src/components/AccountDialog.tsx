@@ -2,13 +2,14 @@ import { useState, type FormEvent } from 'react';
 import { api } from '../api';
 
 type Props = {
+  required?: boolean;
   authenticated: boolean;
   onClose: () => void;
   onAuthenticated: (token: string) => void;
   onSignOut: () => void;
 };
 
-export function AccountDialog({ authenticated, onClose, onAuthenticated, onSignOut }: Props) {
+export function AccountDialog({ required = false, authenticated, onClose, onAuthenticated, onSignOut }: Props) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -32,11 +33,12 @@ export function AccountDialog({ authenticated, onClose, onAuthenticated, onSignO
   };
 
   return (
-    <div className="modal" role="dialog" aria-modal="true" aria-labelledby="account-dialog-title">
-      <div className="modal__card account-dialog">
+    <div className={required ? 'auth-gate' : 'modal'} role="dialog" aria-modal="true" aria-labelledby="account-dialog-title">
+      {required && <p className="auth-gate__brand">Nano-BluePrint</p>}
+      <div className={`modal__card account-dialog${required ? ' account-dialog--required' : ''}`}>
         <header>
-          <h2 id="account-dialog-title">Account</h2>
-          <button className="icon" onClick={onClose} aria-label="Close">×</button>
+          <h2 id="account-dialog-title">{required ? 'Sign in to continue' : 'Account'}</h2>
+          {!required && <button className="icon" onClick={onClose} aria-label="Close">×</button>}
         </header>
         {authenticated ? (
           <>
@@ -62,7 +64,7 @@ export function AccountDialog({ authenticated, onClose, onAuthenticated, onSignO
             </label>
             {mode === 'register' && <p className="hint">Use a strong password that meets the server's password policy.</p>}
             <div className="row">
-              <button type="button" onClick={onClose}>Cancel</button>
+              {!required && <button type="button" onClick={onClose}>Cancel</button>}
               <button className="primary" type="submit" disabled={busy}>
                 {busy ? 'Please wait…' : mode === 'register' ? 'Create account' : 'Sign in'}
               </button>

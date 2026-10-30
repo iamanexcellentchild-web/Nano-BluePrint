@@ -12,6 +12,7 @@ import { Launcher } from './components/Launcher';
 import { SchemaLibrary } from './components/SchemaLibrary';
 import { AccountDialog } from './components/AccountDialog';
 import type { BlockNodeT } from './types';
+import { ApiError } from './api';
 
 const nodeTypes = { block: BlockNode }; // must be stable (module scope)
 type Tab = 'inspect' | 'checks' | 'simulate' | 'ai';
@@ -45,17 +46,33 @@ export function App() {
 
   // Boot: load block library, then reopen the last project or show the launcher.
   useEffect(() => {
+    let active = true;
+    if (!authenticated) {
+      setBooted(true);
+      return () => { active = false; };
+    }
     (async () => {
       try {
-        store.setLibrary(await api.library());
+        const loadedLibrary = await api.library();
+        if (!active) return;
+        store.setLibrary(loadedLibrary);
         const saved = Number(localStorage.getItem(PROJECT_KEY));
         if (saved) await openProject(saved); else setLauncher(true);
       } catch (e) {
+        if (!active) return;
+        if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
+          localStorage.removeItem('blueprint_token');
+          setAuthenticated(false);
+          return;
+        }
         store.notify(e instanceof Error ? e.message : 'Could not reach the API');
-      } finally { setBooted(true); }
+      } finally {
+        if (active) setBooted(true);
+      }
     })();
+    return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [authenticated]);
 
   // Live checks, debounced, only when the logic (not the layout) changes.
   const sig = useMemo(() => logicSignature(store.toDiagram()), [nodes, edges]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -132,18 +149,10 @@ export function App() {
     setLauncher(true);
   };
 
-  const handleAuthenticated = async (token: string) => {
+  const handleAuthenticated = (token: string) => {
     localStorage.setItem('blueprint_token', token);
+    setBooted(false);
     setAuthenticated(true);
-    try {
-      store.setLibrary(await api.library());
-      const currentProjectId = useStore.getState().projectId;
-      const savedProjectId = Number(localStorage.getItem(PROJECT_KEY));
-      if (!currentProjectId && savedProjectId) await openProject(savedProjectId);
-      store.notify('Signed in');
-    } catch (e) {
-      store.notify(e instanceof Error ? e.message : 'Signed in, but the editor could not reload');
-    }
   };
 
   const onDrop = (e: DragEvent) => {
@@ -159,10 +168,18 @@ export function App() {
   // Selecting something that is not a block (e.g. from the checks list) jumps to the inspector.
   useEffect(() => { if (store.selectedId && tab === 'checks') setTab('inspect'); }, [store.selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  if (!authenticated) {
+    return <AccountDialog required authenticated={false} onClose={() => undefined}
+      onAuthenticated={handleAuthenticated} onSignOut={signOut} />;
+  }
+  if (!library || !booted) {
+    return <div className="auth-loading" role="status">Loading Nano-BluePrint…</div>;
+  }
+
   return (
     <div className="app">
       <header className="topbar">
-        <span className="brand">Blueprint</span>
+        <span className="brand">Nano-BluePrint</span>
         <input className="projname" value={name} onChange={(e) => store.setName(e.target.value)} aria-label="Project name" />
         <span className="status">
           {errors > 0 ? <b className="bad">{errors} error{errors > 1 ? 's' : ''}</b> : <span className="good">no errors</span>}

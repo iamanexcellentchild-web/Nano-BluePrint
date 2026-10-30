@@ -94,6 +94,10 @@ pre { background: #f6f7f9; padding: 8px; border-radius: 6px; overflow: auto; fon
 .schema-detail h4 { margin: 12px 0 4px; }
 .schema-docs { white-space: pre-wrap; max-height: 36vh; }
 .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 8px 16px; border-radius: 8px; z-index: 30; max-width: 80vw; }
+.auth-gate { min-height: 100vh; display: grid; align-content: center; justify-items: center; gap: 18px; padding: 24px; background: var(--canvas); }
+.auth-gate__brand { margin: 0; font: 600 30px var(--serif); color: var(--ink); }
+.account-dialog--required { width: min(440px, 92vw); }
+.auth-loading { height: 100vh; display: grid; place-items: center; color: var(--muted); font: 600 20px var(--serif); }
 
 @media (max-width: 700px) {
   .schema-browser { grid-template-columns: 1fr; }

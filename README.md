@@ -1,4 +1,4 @@
-# Blueprint
+# Nano-BluePrint
 
 A visual canvas for designing the **business logic** of a website (orders, bookings, enrolments...) from
 building blocks, with starter templates, live checks, a simulator, an AI assistant that edits the
@@ -34,10 +34,10 @@ python -m blueprint_core generate blueprint_core/templates/ecommerce.json --out 
 cd backend
 python -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt            # installs ../core in editable mode
-export DEBUG=1                             # allows anonymous use locally
+export DEBUG=1                             # local development settings; sign-in is still required
 python manage.py makemigrations projects   # commit the generated migration
 python manage.py migrate
-python manage.py runserver                 # http://localhost:8000/api/docs/
+python manage.py runserver                 # http://localhost:8000
 python manage.py test                      # API tests
 ```
 Optional AI assistant: `export GROQ_API_KEY=...` (model via `GROQ_MODEL`, default `llama-3.3-70b-versatile`).
@@ -49,6 +49,8 @@ npm install
 npm run typecheck
 npm run dev                                # http://localhost:5173 (proxies /api to :8000)
 ```
+Create an account or sign in when the frontend opens. All application endpoints and API docs require
+authentication even when `DEBUG=1`; only account registration and token creation are available before login.
 
 **4. Try the generated project**
 ```bash
@@ -62,7 +64,7 @@ the SQL Query block accepts parameterized, read-only `SELECT`/`WITH` queries usi
 Groq model for custom-block implementations and a generation review.
 
 Build a schema on the canvas and choose **Publish schema** to add it to the community library with
-a description and Markdown documentation. Others can browse the public **Schema library**, read
+a description and Markdown documentation. Signed-in users can browse the **Schema library**, read
 the docs, and create their own project from a published snapshot. Published schemas must pass
 diagram validation; only their publisher can edit or remove them. Sign in or create an account to
 save projects and publish or use schemas in production.

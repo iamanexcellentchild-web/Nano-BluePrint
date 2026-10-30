@@ -27,7 +27,7 @@ async function fail(res: Response): Promise<never> {
   } catch {
     /* non-JSON error body */
   }
-  if (res.status === 401 || res.status === 403) detail = 'Not signed in. Set localStorage.blueprint_token (see README).';
+  if (res.status === 401) detail = 'Please sign in to continue.';
   throw new ApiError(detail, res.status, issues);
 }
 

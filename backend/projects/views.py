@@ -56,22 +56,16 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
 
 class BlockLibraryView(APIView):
-    permission_classes = [AllowAny]
-
     def get(self, request):
         return Response(library_as_dict())
 
 
 class TemplateListView(APIView):
-    permission_classes = [AllowAny]
-
     def get(self, request):
         return Response(list_templates())
 
 
 class TemplateDetailView(APIView):
-    permission_classes = [AllowAny]
-
     def get(self, request, template_id):
         try:
             return Response(load_template(template_id))

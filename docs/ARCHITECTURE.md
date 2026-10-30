@@ -41,7 +41,8 @@ explainable, reviewable and regenerable.
 
 ## Security notes
 
-* Anonymous access exists **only when `DEBUG=1`** (`projects/permissions.py`). Production requires auth.
+* Every API endpoint requires authentication, including in `DEBUG=1`. Only registration and token creation
+  allow anonymous requests. Published schemas are visible only to signed-in users.
 * Diagram size capped (`BLUEPRINT_MAX_NODES`, request body 5 MB). AI and generate endpoints are throttled.
 * Generated code embeds user text only through Python `repr()` literals (tested), never string-concatenated code.
 * Generated apps have **no authentication** on their API yet. Treat them as scaffolds (see roadmap).
