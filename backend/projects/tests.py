@@ -1,9 +1,12 @@
 import io
+import json
 import zipfile
 from unittest.mock import patch
 
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
+
+from blueprint_core import Diagram
 
 from . import ai
 
@@ -68,3 +71,90 @@ class ApiTests(TestCase):
     @override_settings(DEBUG=False)
     def test_requires_auth_in_production(self):
         self.assertIn(self.c.get("/api/projects/").status_code, (401, 403))
+
+
+class AISafetyTests(TestCase):
+    """Tests for the AI proposal safety gate in projects/ai.py."""
+
+    @patch("projects.ai._ask")
+    def test_patch_adding_unknown_block_is_rejected(self, mock_ask):
+        mock_ask.return_value = json.dumps({
+            "summary": "add unknown block",
+            "patch": [{"op": "add", "path": "/nodes/-",
+                       "value": {"id": "x", "type": "wat", "label": "Wat", "position": {"x": 0, "y": 0}, "config": {}}}]
+        })
+        diagram = {"nodes": [], "edges": []}
+        with self.assertRaises(ai.AIError) as ctx:
+            ai.suggest(diagram, "add a block")
+        self.assertIn("DG001", str(ctx.exception))
+
+    @patch("projects.ai._ask")
+    def test_patch_that_fixes_error_is_accepted(self, mock_ask):
+        # Diagram has an entity + an event with nothing after it (DG020 warning).
+        # Propose adding a valid update_status step connected to it -> resolves the warning, no new errors/warnings.
+        mock_ask.return_value = json.dumps({
+            "summary": "add status step",
+            "patch": [
+                {"op": "add", "path": "/nodes/-",
+                 "value": {"id": "s", "type": "update_status", "label": "Set status", "position": {"x": 300, "y": 0},
+                           "config": {"status": "placed"}}},
+                {"op": "add", "path": "/edges/-",
+                 "value": {"id": "e1", "source": "ev", "target": "s", "source_handle": None}},
+            ],
+        })
+        diagram = {
+            "nodes": [
+                {"id": "ord", "type": "entity", "label": "Order", "position": {"x": 0, "y": 0},
+                 "config": {"name": "Order", "fields": [{"name": "total", "type": "number", "required": True}]}},
+                {"id": "ev", "type": "event", "label": "Order placed", "position": {"x": 200, "y": 0},
+                 "config": {"name": "order_placed", "entity": "Order"}},
+            ],
+            "edges": [],
+        }
+        result = ai.suggest(diagram, "add a step after the event")
+        self.assertEqual(result["mode"], "suggest")
+        expected_patch = json.loads(mock_ask.return_value)["patch"]
+        self.assertEqual(result["patch"], expected_patch)
+
+    @patch("projects.ai._ask")
+    def test_empty_patch_is_accepted(self, mock_ask):
+        mock_ask.return_value = json.dumps({"summary": "no changes needed", "patch": []})
+        diagram = {"nodes": [], "edges": []}
+        result = ai.suggest(diagram, "review")
+        self.assertEqual(result["mode"], "suggest")
+        self.assertEqual(result["patch"], [])
+
+    @patch("projects.ai._ask")
+    def test_generate_project_assist_rejects_forbidden_import(self, mock_ask):
+        mock_ask.return_value = json.dumps({
+            "review": "unsafe",
+            "custom_code": {"c": "    import os\n    os.system('echo pwned')"},
+        })
+        diagram = Diagram.from_dict({
+            "nodes": [
+                {"id": "e", "type": "event", "label": "Go", "position": {"x": 0, "y": 0}, "config": {"name": "go"}},
+                {"id": "c", "type": "custom_code", "label": "Custom", "position": {"x": 200, "y": 0},
+                 "config": {"description": "do something"}},
+            ],
+            "edges": [{"id": "e1", "source": "e", "target": "c", "source_handle": None}],
+        })
+        with self.assertRaises(ai.AIError) as ctx:
+            ai.generate_project_assist(diagram, "fastapi")
+        self.assertIn("disallowed", str(ctx.exception).lower())
+
+    @patch("projects.ai._ask")
+    def test_generate_project_assist_rejects_eval(self, mock_ask):
+        mock_ask.return_value = json.dumps({
+            "review": "unsafe",
+            "custom_code": {"c": "eval(ctx.get('x', '0'))"},
+        })
+        diagram = Diagram.from_dict({
+            "nodes": [
+                {"id": "e", "type": "event", "label": "Go", "position": {"x": 0, "y": 0}, "config": {"name": "go"}},
+                {"id": "c", "type": "custom_code", "label": "Custom", "position": {"x": 200, "y": 0},
+                 "config": {"description": "do something"}},
+            ],
+            "edges": [{"id": "e1", "source": "e", "target": "c", "source_handle": None}],
+        })
+        with self.assertRaises(ai.AIError):
+            ai.generate_project_assist(diagram, "express")
