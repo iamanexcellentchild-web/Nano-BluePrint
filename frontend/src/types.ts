@@ -80,6 +80,20 @@ export interface TemplateSummary {
   name: string;
   description: string;
 }
+export interface PublishedSchemaSummary {
+  id: number;
+  title: string;
+  slug: string;
+  description: string;
+  author: string;
+  use_count: number;
+  created_at: string;
+}
+export interface PublishedSchema extends PublishedSchemaSummary {
+  documentation: string;
+  diagram: Diagram;
+  updated_at: string;
+}
 export interface AiResult {
   mode: 'explain' | 'suggest';
   text?: string;

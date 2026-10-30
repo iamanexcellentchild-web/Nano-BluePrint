@@ -2,6 +2,7 @@ import io
 import zipfile
 from unittest.mock import patch
 
+from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
@@ -54,6 +55,88 @@ class ApiTests(TestCase):
                 files = zipfile.ZipFile(io.BytesIO(response.content)).namelist()
                 self.assertTrue(any(path.endswith(expected_path) for path in files), files)
 
+    def test_published_schema_is_documented_public_and_reusable(self):
+        diagram = self.c.get("/api/templates/ecommerce/").json()
+        payload = {
+            "title": "Small shop schema",
+            "description": "A reusable order and payment workflow for a small online shop.",
+            "documentation": (
+                "## Overview\nA simple online shop order workflow.\n\n"
+                "## Data model\nOrders include customer and payment details.\n\n"
+                "## How to use\nStart with the order_placed event and configure integrations."
+            ),
+            "diagram": diagram,
+        }
+        response = self.c.post("/api/schemas/", payload, format="json")
+        self.assertEqual(response.status_code, 201, response.content)
+        slug = response.json()["slug"]
+        self.assertEqual(self.c.get(f"/api/schemas/{slug}/").json()["documentation"], payload["documentation"])
+        self.assertIn(slug, [item["slug"] for item in self.c.get("/api/schemas/?q=small").json()])
+
+        used = self.c.post(f"/api/schemas/{slug}/use/", {"name": "My Shop"}, format="json")
+        self.assertEqual(used.status_code, 201, used.content)
+        self.assertEqual(used.json()["name"], "My Shop")
+        copied = self.c.get(f"/api/projects/{used.json()['id']}/latest/").json()["diagram"]
+        self.assertEqual(copied["name"], "My Shop")
+        self.assertEqual(copied["nodes"], diagram["nodes"])
+        self.assertEqual(self.c.get(f"/api/schemas/{slug}/").json()["use_count"], 1)
+
+    def test_only_publisher_can_edit_published_schema(self):
+        user_model = get_user_model()
+        owner = user_model.objects.create_user(username="schema-owner", password="long-safe-password-123")
+        other = user_model.objects.create_user(username="other-user", password="long-safe-password-123")
+        diagram = self.c.get("/api/templates/ecommerce/").json()
+        payload = {
+            "title": "Owner schema",
+            "description": "A documented reusable schema created by its owner.",
+            "documentation": (
+                "## Overview\nA reusable workflow.\n\n## Data model\nOrders and customers.\n\n"
+                "## How to use\nConfigure the events before generating code."
+            ),
+            "diagram": diagram,
+        }
+        self.c.force_authenticate(user=owner)
+        created = self.c.post("/api/schemas/", payload, format="json")
+        self.assertEqual(created.status_code, 201, created.content)
+        self.c.force_authenticate(user=other)
+        denied = self.c.patch(f"/api/schemas/{created.json()['slug']}/", {"title": "Changed"}, format="json")
+        self.assertEqual(denied.status_code, 403)
+        self.c.force_authenticate(user=owner)
+        allowed = self.c.patch(f"/api/schemas/{created.json()['slug']}/", {"title": "Updated schema"}, format="json")
+        self.assertEqual(allowed.status_code, 200, allowed.content)
+
+    def test_account_registration_and_token_login(self):
+        registration = self.c.post("/api/auth/register/", {
+            "username": "schema-publisher",
+            "password": "distinct-strong-password-123",
+        }, format="json")
+        self.assertEqual(registration.status_code, 201, registration.content)
+        login = self.c.post("/api/auth/token/", {
+            "username": "schema-publisher",
+            "password": "distinct-strong-password-123",
+        }, format="json")
+        self.assertEqual(login.status_code, 200, login.content)
+        self.c.credentials(HTTP_AUTHORIZATION=f"Token {login.json()['token']}")
+        self.assertEqual(self.c.get("/api/projects/").status_code, 200)
+
+    def test_publishing_rejects_diagrams_with_errors(self):
+        diagram = self.c.get("/api/templates/ecommerce/").json()
+        diagram["nodes"].append({
+            "id": "bad", "type": "unknown", "label": "Unknown", "config": {},
+            "position": {"x": 0, "y": 0},
+        })
+        response = self.c.post("/api/schemas/", {
+            "title": "Invalid schema",
+            "description": "A description long enough for validation.",
+            "documentation": (
+                "## Overview\nThis schema is invalid.\n\n## Data model\nUnknown block.\n\n"
+                "## How to use\nIt should not publish."
+            ),
+            "diagram": diagram,
+        }, format="json")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("issues", response.json())
+
     def test_ai_generate_reports_unavailable_provider(self):
         diagram = self.c.get("/api/templates/ecommerce/").json()
         with patch("projects.views.ai.generate_project_assist", side_effect=ai.AIUnavailable("Provider not configured.")):
@@ -67,4 +150,7 @@ class ApiTests(TestCase):
 
     @override_settings(DEBUG=False)
     def test_requires_auth_in_production(self):
+        self.assertEqual(self.c.get("/api/blocks/").status_code, 200)
+        self.assertEqual(self.c.get("/api/templates/").status_code, 200)
+        self.assertEqual(self.c.get("/api/schemas/").status_code, 200)
         self.assertIn(self.c.get("/api/projects/").status_code, (401, 403))

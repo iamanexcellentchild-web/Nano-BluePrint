@@ -74,9 +74,29 @@ pre { background: #f6f7f9; padding: 8px; border-radius: 6px; overflow: auto; fon
 .modal__card { background: #fff; width: min(760px, 92vw); max-height: 88vh; overflow: auto; border-radius: 10px; padding: 20px 24px; }
 .modal__card header { display: flex; justify-content: space-between; align-items: center; }
 .modal__card h2 { font: 600 24px var(--serif); margin: 0; }
+.account-dialog { width: min(440px, 92vw); }
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; margin-top: 14px; }
 .card { text-align: left; padding: 12px; display: flex; flex-direction: column; gap: 4px; }
 .card span { color: var(--muted); font-size: 12.5px; }
 .card--blank { border-style: dashed; }
 .projects { padding-left: 18px; }
+.schema-dialog { width: min(900px, 94vw); }
+.schema-dialog--browse { width: min(1080px, 95vw); }
+.schema-publish { display: grid; gap: 4px; }
+.schema-publish textarea { font-family: ui-monospace, monospace; font-size: 13px; }
+.schema-browser { display: grid; grid-template-columns: minmax(230px, .75fr) minmax(0, 1.4fr); gap: 18px; margin-top: 12px; min-height: 360px; }
+.schema-browser__list { list-style: none; padding: 0; margin: 0; overflow-y: auto; max-height: 56vh; }
+.schema-entry { display: flex; flex-direction: column; gap: 4px; text-align: left; width: 100%; margin-bottom: 7px; }
+.schema-entry span, .schema-entry small { color: var(--muted); font-size: 12px; }
+.schema-entry--selected { border-color: var(--ink); background: #f6f7f9; }
+.schema-detail { border-left: 1px solid var(--line); padding-left: 18px; min-width: 0; }
+.schema-detail h3 { margin: 4px 0; }
+.schema-detail h4 { margin: 12px 0 4px; }
+.schema-docs { white-space: pre-wrap; max-height: 36vh; }
 .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 8px 16px; border-radius: 8px; z-index: 30; max-width: 80vw; }
+
+@media (max-width: 700px) {
+  .schema-browser { grid-template-columns: 1fr; }
+  .schema-browser__list { max-height: 25vh; }
+  .schema-detail { border-left: 0; border-top: 1px solid var(--line); padding: 14px 0 0; }
+}

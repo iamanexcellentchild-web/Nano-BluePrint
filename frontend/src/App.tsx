@@ -9,6 +9,8 @@ import { IssuesPanel } from './components/IssuesPanel';
 import { SimulatorPanel } from './components/SimulatorPanel';
 import { AiPanel } from './components/AiPanel';
 import { Launcher } from './components/Launcher';
+import { SchemaLibrary } from './components/SchemaLibrary';
+import { AccountDialog } from './components/AccountDialog';
 import type { BlockNodeT } from './types';
 
 const nodeTypes = { block: BlockNode }; // must be stable (module scope)
@@ -22,6 +24,9 @@ export function App() {
   const [tab, setTab] = useState<Tab>('inspect');
   const [target, setTarget] = useState('fastapi');
   const [launcher, setLauncher] = useState(false);
+  const [schemaDialog, setSchemaDialog] = useState<'browse' | 'publish' | null>(null);
+  const [accountDialog, setAccountDialog] = useState(false);
+  const [authenticated, setAuthenticated] = useState(() => Boolean(localStorage.getItem('blueprint_token')));
   const [booted, setBooted] = useState(false);
 
   const openProject = useCallback(async (id: number) => {
@@ -61,7 +66,7 @@ export function App() {
     }, 500);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sig, library]);
+  }, [sig, library, authenticated]);
 
   useEffect(() => {
     if (!toast) return;
@@ -110,6 +115,23 @@ export function App() {
     }
   };
 
+  const usePublishedSchema = async (slug: string, projectName: string) => {
+    const project = await api.useSchema(slug, projectName);
+    setSchemaDialog(null);
+    await openProject(project.id);
+  };
+
+  const signOut = () => {
+    if (useStore.getState().dirty && !window.confirm('Discard unsaved changes and sign out?')) return;
+    localStorage.removeItem('blueprint_token');
+    localStorage.removeItem(PROJECT_KEY);
+    useStore.getState().setProjectId(null);
+    useStore.getState().loadDiagram({ schema_version: '1', name: 'Untitled', nodes: [], edges: [] });
+    setAuthenticated(false);
+    setAccountDialog(false);
+    setLauncher(true);
+  };
+
   const onDrop = (e: DragEvent) => {
     e.preventDefault();
     const type = e.dataTransfer.getData('application/blueprint-block');
@@ -135,7 +157,13 @@ export function App() {
         </span>
         <span className="spacer" />
         <button onClick={() => setLauncher(true)}>Projects</button>
+        <button onClick={() => setAccountDialog(true)}>{authenticated ? 'Account' : 'Sign in'}</button>
         <button onClick={save} disabled={!dirty && !!projectId}>Save</button>
+        <button onClick={() => setSchemaDialog('browse')}>Schema library</button>
+        <button onClick={() => setSchemaDialog('publish')} disabled={errors > 0 || nodes.length === 0}
+          title={errors ? 'Fix diagram errors before publishing' : 'Publish a documented copy of this diagram'}>
+          Publish schema
+        </button>
         <select className="target-select" aria-label="Generated backend" value={target} onChange={(e) => setTarget(e.target.value)}>
           <option value="fastapi">FastAPI · PostgreSQL</option>
           <option value="django">Django · SQLite</option>
@@ -182,7 +210,15 @@ export function App() {
         </div>
       </aside>
 
-      {launcher && <Launcher onOpen={openProject} onClose={projectId || nodes.length ? () => setLauncher(false) : undefined} />}
+      {launcher && <Launcher onOpen={openProject} onClose={projectId || nodes.length ? () => setLauncher(false) : undefined}
+        authenticated={authenticated} onAccount={() => setAccountDialog(true)} />}
+      {accountDialog && <AccountDialog authenticated={authenticated} onClose={() => setAccountDialog(false)}
+        onAuthenticated={(token) => { localStorage.setItem('blueprint_token', token); setAuthenticated(true); }}
+        onSignOut={signOut} />}
+      {schemaDialog && <SchemaLibrary mode={schemaDialog} diagram={schemaDialog === 'publish' ? store.toDiagram() : undefined}
+        onClose={() => setSchemaDialog(null)}
+        onUse={usePublishedSchema}
+        onPublished={(title) => { setSchemaDialog(null); store.notify(`Published "${title}" to the schema library`); }} />}
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>
   );

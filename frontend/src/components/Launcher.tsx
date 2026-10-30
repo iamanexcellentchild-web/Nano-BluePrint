@@ -5,18 +5,28 @@ import type { ProjectSummary, TemplateSummary } from '../types';
 interface Props {
   onOpen: (projectId: number) => void;
   onClose?: () => void;
+  authenticated: boolean;
+  onAccount: () => void;
 }
 
-export function Launcher({ onOpen, onClose }: Props) {
+export function Launcher({ onOpen, onClose, authenticated, onAccount }: Props) {
   const [templates, setTemplates] = useState<TemplateSummary[]>([]);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [name, setName] = useState('My project');
   const [error, setError] = useState<string | null>(null);
+  const [projectsError, setProjectsError] = useState<string | null>(null);
+
   useEffect(() => {
-    Promise.all([api.templates(), api.projects()])
-      .then(([t, p]) => { setTemplates(t); setProjects(p); })
-      .catch((e: Error) => setError(e.message));
-  }, []);
+    let active = true;
+    api.templates().then((items) => { if (active) setTemplates(items); })
+      .catch((e: Error) => { if (active) setError(e.message); });
+    api.projects().then((items) => {
+      if (active) { setProjects(items); setProjectsError(null); }
+    }).catch((e: Error) => {
+      if (active) { setProjects([]); setProjectsError(e.message); }
+    });
+    return () => { active = false; };
+  }, [authenticated]);
 
   const create = async (template: string) => {
     try { onOpen((await api.createProject(name.trim() || 'Untitled', template)).id); }
@@ -28,9 +38,11 @@ export function Launcher({ onOpen, onClose }: Props) {
       <div className="modal__card">
         <header>
           <h2>Start a project</h2>
+          <button onClick={onAccount}>{authenticated ? 'Account' : 'Sign in / Register'}</button>
           {onClose && <button className="icon" onClick={onClose} aria-label="Close">×</button>}
         </header>
         {error && <p className="error">{error}</p>}
+        {projectsError && <p className="hint">Saved projects could not be loaded: {projectsError}</p>}
         <label>Project name<input value={name} onChange={(e) => setName(e.target.value)} /></label>
         <div className="cards">
           {templates.map((t) => (

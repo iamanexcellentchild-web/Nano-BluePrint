@@ -1,4 +1,7 @@
-import type { AiResult, Diagram, Issue, Library, ProjectSummary, SimResult, TemplateSummary } from './types';
+import type {
+  AiResult, Diagram, Issue, Library, ProjectSummary, PublishedSchema, PublishedSchemaSummary,
+  SimResult, TemplateSummary,
+} from './types';
 
 export class ApiError extends Error {
   constructor(message: string, public status: number, public issues?: Issue[]) {
@@ -41,6 +44,16 @@ export const api = {
   templates: () => req<TemplateSummary[]>('/templates/'),
   projects: () => req<ProjectSummary[]>('/projects/'),
   createProject: (name: string, template: string) => req<ProjectSummary>('/projects/', post({ name, template })),
+  schemas: (query = '') => req<PublishedSchemaSummary[]>(`/schemas/${query ? `?q=${encodeURIComponent(query)}` : ''}`),
+  schema: (slug: string) => req<PublishedSchema>(`/schemas/${encodeURIComponent(slug)}/`),
+  publishSchema: (payload: Pick<PublishedSchema, 'title' | 'description' | 'documentation' | 'diagram'>) =>
+    req<PublishedSchema>('/schemas/', post(payload)),
+  useSchema: (slug: string, name: string) =>
+    req<ProjectSummary>(`/schemas/${encodeURIComponent(slug)}/use/`, post({ name })),
+  register: (username: string, password: string) =>
+    req<{ detail: string }>('/auth/register/', post({ username, password })),
+  login: (username: string, password: string) =>
+    req<{ token: string }>('/auth/token/', post({ username, password })),
   latest: (id: number) => req<{ number: number; diagram: Diagram }>(`/projects/${id}/latest/`),
   saveVersion: (id: number, diagram: Diagram, note = '') =>
     req<{ number: number }>(`/projects/${id}/versions/`, post({ diagram, note })),

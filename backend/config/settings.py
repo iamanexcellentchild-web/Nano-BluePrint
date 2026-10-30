@@ -59,7 +59,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {"ai": "20/min", "generate": "30/min"},
 }
 SPECTACULAR_SETTINGS = {"TITLE": "Blueprint API", "VERSION": "0.1.0",
-                        "DESCRIPTION": "Visual business-logic designer: diagrams, validation, simulation, code generation."}
+                        "DESCRIPTION": "Visual business-logic designer with validation, simulation, code generation, and a public library of documented, reusable schemas."}
 
 # Hard limits so a diagram payload cannot exhaust memory.
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024

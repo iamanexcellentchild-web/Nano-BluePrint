@@ -61,6 +61,12 @@ the SQL Query block accepts parameterized, read-only `SELECT`/`WITH` queries usi
 `:parameter` values from the event payload. AI Generate sends the diagram to the configured
 Groq model for custom-block implementations and a generation review.
 
+Build a schema on the canvas and choose **Publish schema** to add it to the community library with
+a description and Markdown documentation. Others can browse the public **Schema library**, read
+the docs, and create their own project from a published snapshot. Published schemas must pass
+diagram validation; only their publisher can edit or remove them. Sign in or create an account to
+save projects and publish or use schemas in production.
+
 ## Verification status
 
 * The core suite covers validation, IR compilation, simulation, all three generators, generated Python

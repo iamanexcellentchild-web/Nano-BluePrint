@@ -1,21 +1,27 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
+from django.db.models import F, Q
 from django.http import Http404, HttpResponse
 from django.utils.text import slugify
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from blueprint_core import (TARGETS, compile_ir, generate, has_errors, library_as_dict, list_templates,
                             load_template, simulate, validate, zip_project)
+from blueprint_core import Diagram
 from blueprint_core.generators.base import GeneratedFile
 
 from . import ai
-from .models import Project
-from .serializers import DiagramVersionSerializer, ProjectSerializer, parse_diagram, save_version
+from .models import Project, PublishedSchema
+from .permissions import PublishedSchemaPermission
+from .serializers import (DiagramVersionSerializer, ProjectSerializer, PublishedSchemaSerializer,
+                          PublishedSchemaSummarySerializer, UseSchemaSerializer, parse_diagram, save_version)
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -50,21 +56,100 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
 
 class BlockLibraryView(APIView):
+    permission_classes = [AllowAny]
+
     def get(self, request):
         return Response(library_as_dict())
 
 
 class TemplateListView(APIView):
+    permission_classes = [AllowAny]
+
     def get(self, request):
         return Response(list_templates())
 
 
 class TemplateDetailView(APIView):
+    permission_classes = [AllowAny]
+
     def get(self, request, template_id):
         try:
             return Response(load_template(template_id))
         except KeyError:
             raise Http404
+
+
+class PublishedSchemaListView(ListCreateAPIView):
+    permission_classes = [PublishedSchemaPermission]
+    queryset = PublishedSchema.objects.select_related("owner").all()
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        query = self.request.query_params.get("q", "").strip()
+        if query:
+            queryset = queryset.filter(Q(title__icontains=query) | Q(description__icontains=query))
+        return queryset
+
+    def get_serializer_class(self):
+        return PublishedSchemaSerializer if self.request.method == "POST" else PublishedSchemaSummarySerializer
+
+    def perform_create(self, serializer):
+        diagram = serializer.validated_data["diagram"]
+        if not diagram["nodes"]:
+            raise serializers.ValidationError({"diagram": "Add at least one block before publishing."})
+        issues = validate(Diagram.from_dict(diagram))
+        if has_errors(issues):
+            raise serializers.ValidationError({
+                "diagram": "Fix diagram errors before publishing.",
+                "issues": [issue.to_dict() for issue in issues],
+            })
+        serializer.save(owner=self.request.user if self.request.user.is_authenticated else None)
+
+    def create(self, request, *args, **kwargs):
+        response = super().create(request, *args, **kwargs)
+        schema = self.get_queryset().get(pk=response.data["id"])
+        return Response(PublishedSchemaSerializer(schema).data, status=status.HTTP_201_CREATED)
+
+
+class PublishedSchemaDetailView(RetrieveUpdateDestroyAPIView):
+    permission_classes = [PublishedSchemaPermission]
+    queryset = PublishedSchema.objects.select_related("owner").all()
+    serializer_class = PublishedSchemaSerializer
+    lookup_field = "slug"
+
+    def perform_update(self, serializer):
+        diagram = serializer.validated_data.get("diagram")
+        if diagram is not None:
+            if not diagram["nodes"]:
+                raise serializers.ValidationError({"diagram": "A published schema must contain at least one block."})
+            issues = validate(Diagram.from_dict(diagram))
+            if has_errors(issues):
+                raise serializers.ValidationError({
+                    "diagram": "Fix diagram errors before updating the published schema.",
+                    "issues": [issue.to_dict() for issue in issues],
+                })
+        serializer.save()
+
+
+class UsePublishedSchemaView(APIView):
+    def post(self, request, slug):
+        try:
+            schema = PublishedSchema.objects.get(slug=slug)
+        except PublishedSchema.DoesNotExist:
+            raise Http404
+        serializer = UseSchemaSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        name = serializer.validated_data["name"] or schema.title
+        with transaction.atomic():
+            project = Project.objects.create(
+                owner=request.user if request.user.is_authenticated else None,
+                name=name,
+            )
+            diagram = dict(schema.diagram)
+            diagram["name"] = name
+            save_version(project, diagram, note=f"Created from published schema: {schema.title}")
+            PublishedSchema.objects.filter(pk=schema.pk).update(use_count=F("use_count") + 1)
+        return Response(ProjectSerializer(project).data, status=status.HTTP_201_CREATED)
 
 
 class DiagramInput(serializers.Serializer):

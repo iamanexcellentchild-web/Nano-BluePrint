@@ -29,3 +29,22 @@ class DiagramVersion(models.Model):
     class Meta:
         ordering = ["-number"]
         constraints = [models.UniqueConstraint(fields=["project", "number"], name="uniq_project_version")]
+
+
+class PublishedSchema(models.Model):
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+                              related_name="published_schemas")
+    title = models.CharField(max_length=120)
+    slug = models.SlugField(max_length=150, unique=True)
+    description = models.CharField(max_length=300)
+    documentation = models.TextField(max_length=20000)
+    diagram = models.JSONField()
+    use_count = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-use_count", "-created_at"]
+
+    def __str__(self):
+        return self.title
