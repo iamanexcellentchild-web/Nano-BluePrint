@@ -1,14 +1,15 @@
-import type { Node } from '@xyflow/react';
+import type { Node } from "@xyflow/react";
 
-export type Category = 'data' | 'actor' | 'trigger' | 'logic' | 'action' | 'integration';
+export type Category = "data" | "actor" | "trigger" | "logic" | "action" | "integration";
 
 export interface ConfigField {
   key: string;
   label: string;
-  kind: 'text' | 'textarea' | 'number' | 'select' | 'fields' | 'tags';
+  kind: "text" | "textarea" | "number" | "select" | "fields" | "tags";
   required: boolean;
   options?: string[];
 }
+
 export interface BlockDef {
   type: string;
   category: Category;
@@ -19,6 +20,7 @@ export interface BlockDef {
   config_fields: ConfigField[];
   defaults: Record<string, unknown>;
 }
+
 export interface Library {
   categories: Record<string, { label: string; color: string }>;
   blocks: BlockDef[];
@@ -36,12 +38,14 @@ export interface DiagramNode {
   config: Record<string, unknown>;
   position: { x: number; y: number };
 }
+
 export interface DiagramEdge {
   id: string;
   source: string;
   target: string;
   source_handle: string | null;
 }
+
 export interface Diagram {
   schema_version?: string;
   name: string;
@@ -50,24 +54,27 @@ export interface Diagram {
 }
 
 export interface Issue {
-  level: 'error' | 'warning' | 'info';
+  level: "error" | "warning" | "info";
   code: string;
   message: string;
   node_id: string | null;
   edge_id: string | null;
 }
+
 export interface TraceStep {
   node_id: string;
   kind: string;
   summary: string;
   branch?: string;
 }
+
 export interface SimResult {
   ok: boolean;
   trace: TraceStep[];
   context: Record<string, unknown>;
   error: string | null;
 }
+
 export interface ProjectSummary {
   id: number;
   name: string;
@@ -75,13 +82,15 @@ export interface ProjectSummary {
   updated_at: string;
   latest_version: number | null;
 }
+
 export interface TemplateSummary {
   id: string;
   name: string;
   description: string;
 }
+
 export interface AiResult {
-  mode: 'explain' | 'suggest';
+  mode: "explain" | "suggest";
   text?: string;
   summary?: string;
   proposed_diagram?: Diagram;
@@ -89,4 +98,4 @@ export interface AiResult {
 }
 
 export type BlockData = { blockType: string; label: string; config: Record<string, unknown> };
-export type BlockNodeT = Node<BlockData, 'block'>;
+export type BlockNodeT = Node<BlockData, "block">;
